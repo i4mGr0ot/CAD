@@ -1,0 +1,110 @@
+ #Study Setup
+ model.study.create('std1');
+ model.study('std1').feature.create('freq', 'Frequency');
+ model.study('std1').feature('freq').set('solnum', 'auto');
+ model.study('std1').feature('freq').set('plist', '100:10:5000');  # Frequency sweep in
+ Hz
+ #Solver Configuration
+ model.sol.create('sol1');
+ model.sol('sol1').study('std1');
+ # Study step
+ model.sol('sol1').feature.create('st1', 'StudyStep');
+ model.sol('sol1').feature('st1').set('study', 'std1');
+ model.sol('sol1').feature('st1').set('studystep', 'freq');
+ # Variables initialization
+ model.sol('sol1').feature.create('v1', 'Variables');
+ model.sol('sol1').feature('v1').set('control', 'freq');
+ # Solver sequence
+ model.sol('sol1').feature.create('s1', 'Stationary');
+ model.sol('sol1').feature('s1').label('Frequency-Domain Solver');
+ model.sol('sol1').feature('s1').set('control', 'freq');
+ model.sol('sol1').feature('s1').create('seg1', 'Segregated');
+ # Segregated groups by physics (example)
+ model.sol('sol1').feature('s1').feature('seg1').create('g1', 'SegregatedGroup');
+ model.sol('sol1').feature('s1').feature('seg1').create('g2', 'SegregatedGroup');
+ model.sol('sol1').feature('s1').feature('seg1').feature('g1').set('solvefor', ...
+    {'u' 'v' 'p'});  # Flow variables
+ model.sol('sol1').feature('s1').feature('seg1').feature('g2').set('solvefor', ...
+    {'T' 'p_tva'});  # Thermal + acoustic pressure
+ #GMRES Iterative Solver
+ model.sol('sol1').feature('s1').create('i1', 'Iterative');
+ model.sol('sol1').feature('s1').feature('i1').label('GMRES Solver');
+ model.sol('sol1').feature('s1').feature('i1').set('linsolver', 'gmres');
+ model.sol('sol1').feature('s1').feature('i1').set('prefun', 'ssor');
+ model.sol('sol1').feature('s1').feature('i1').set('rescale', 'on');
+ model.sol('sol1').feature('s1').feature('i1').set('maxiter', 1000);
+ model.sol('sol1').feature('s1').feature('i1').set('rtol', 1e-6);
+ model.sol('sol1').attach('std1');
+ model.sol('sol1').runAll;
+ #Manual Variable Scaling
+ model.variable.create('var1');
+ model.variable('var1').set('p_tva', '1');       # Acoustic pressure scaling
+ model.variable('var1').set('T', '3000');        # Temperature scaling
+ model.variable('var1').set('u', '2500');        # Velocity scaling
+ Mesh Settings (Optional)
+ model.mesh('mesh1').automatic(false);
+ model.mesh('mesh1').feature('size').set('hauto', 2);  # Manual resolution control
+ #Eigenfrequency Study for Thermoacoustic Stability
+ model.study.create('std2');
+ model.study('std2').feature.create('eig', 'Eigenfrequency');
+ model.study('std2').feature('eig').set('neigs', 10);
+ model.study('std2').feature('eig').set('shift', '2000');  # Shift for complex eigenvalue
+ search (Hz)
+ model.study('std2').feature('eig').set('usecomplexshift', true);
+ #Eigenfrequency Solver Configuration
+ model.sol.create('sol2');
+ model.sol('sol2').study('std2');
+ model.sol('sol2').feature.create('st1', 'StudyStep');
+ model.sol('sol2').feature('st1').set('study', 'std2');
+ model.sol('sol2').feature('st1').set('studystep', 'eig');
+ model.sol('sol2').feature.create('v1', 'Variables');
+ model.sol('sol2').feature('v1').set('control', 'eig');
+ model.sol('sol2').feature.create('e1', 'Eigenvalue');
+ model.sol('sol2').feature('e1').set('neigs', 10);
+ model.sol('sol2').feature('e1').set('shift', '2000');  #Shift frequency for targeting
+ specific modes
+ model.sol('sol2').feature('e1').set('transform', 'general');
+ model.sol('sol2').feature('e1').set('control', 'eig');
+ model.sol('sol2').feature('e1').create('i1', 'Iterative');
+ model.sol('sol2').feature('e1').feature('i1').set('linsolver', 'gmres');
+ model.sol('sol2').feature('e1').feature('i1').set('prefun', 'ssor');
+ model.sol('sol2').feature('e1').feature('i1').set('maxiter', 1000);
+ model.sol('sol2').feature('e1').feature('i1').set('rtol', 1e-6);
+ model.sol('sol2').attach('std2');
+ model.sol('sol2').runAll;
+ #Time-Dependent Thermoacoustic Simulation
+ model.study.create('std3');
+ model.study('std3').feature.create('time', 'Transient');
+ model.study('std3').feature('time').set('tlist', 'range(0,1e-5,0.01)');  #Time stepping in seconds
+ model.study('std3').feature('time').set('useinitsol', false);
+ model.sol.create('sol3');
+ model.sol('sol3').study('std3');
+ model.sol('sol3').feature.create('st1', 'StudyStep');
+ model.sol('sol3').feature('st1').set('study', 'std3');
+ model.sol('sol3').feature('st1').set('studystep', 'time');
+ model.sol('sol3').feature.create('v1', 'Variables');
+ model.sol('sol3').feature('v1').set('control', 'time');
+ model.sol('sol3').feature.create('t1', 'Time');
+ model.sol('sol3').feature('t1').set('tlist', 'range(0,1e-5,0.01)');
+ model.sol('sol3').feature('t1').set('initialstepbdf', '1e-8');
+ model.sol('sol3').feature('t1').set('maxorder', 5);
+ model.sol('sol3').feature('t1').create('i1', 'Iterative');
+ model.sol('sol3').feature('t1').feature('i1').set('linsolver', 'gmres');
+ model.sol('sol3').feature('t1').feature('i1').set('prefun', 'ssor');
+ model.sol('sol3').feature('t1').feature('i1').set('maxiter', 1000);
+ model.sol('sol3').feature('t1').feature('i1').set('rtol', 1e-6);
+ model.sol('sol3').attach('std3');
+ model.sol('sol3').runAll;
+ #Post-Processing: Mode Shape and Pressure Field
+ # Example of plotting pressure distribution from Eigenfrequency study
+ mphplot(model, 'pg1', 'rangenum', 1);  # Replace 'pg1' with your plot group ID
+ # To extract eigenfrequencies (complex), use:
+ freqs = mphglobal(model, 'freq', 'dataset', 'dset2');
+ growthRates = imag(freqs);  # Imaginary part indicates growth or decay
+ # Export time series data:
+ mphsave(model, 'ThermoacousticResults.mph');  # Save model for post-analysis
+ # To plot pressure vs time at a point:
+ [t, p] = mphinterp(model, {'t', 'acpr'}, 'coord', [x0; y0]);
+ plot(t, p);
+ title('Acoustic Pressure vs Time');
+ xlabel('Time [s]'); ylabel('Pressure [Pa]');
